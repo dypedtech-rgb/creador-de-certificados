@@ -510,3 +510,170 @@ document.getElementById('certFileInput').addEventListener('change', (e) => {
     reader.readAsText(file);
     e.target.value = ''; // reset
 });
+
+// ======================== GUÍAS INTELIGENTES (SMART GUIDES) ========================
+function initAligningGuidelines(canvas) {
+    var ctx = canvas.getSelectionContext(),
+        aligningLineOffset = 5,
+        aligningLineMargin = 4,
+        aligningLineWidth = 1,
+        aligningLineColor = 'rgb(0,255,0)',
+        viewportTransform,
+        zoom = 1;
+
+    function drawVerticalLine(coords) {
+        drawLine(
+            coords.x + 0.5,
+            coords.y1 > coords.y2 ? coords.y2 : coords.y1,
+            coords.x + 0.5,
+            coords.y2 > coords.y1 ? coords.y2 : coords.y1
+        );
+    }
+
+    function drawHorizontalLine(coords) {
+        drawLine(
+            coords.x1 > coords.x2 ? coords.x2 : coords.x1,
+            coords.y + 0.5,
+            coords.x2 > coords.x1 ? coords.x2 : coords.x1,
+            coords.y + 0.5
+        );
+    }
+
+    function drawLine(x1, y1, x2, y2) {
+        ctx.save();
+        ctx.lineWidth = aligningLineWidth;
+        ctx.strokeStyle = aligningLineColor;
+        ctx.beginPath();
+        ctx.moveTo(x1 * zoom + viewportTransform[4], y1 * zoom + viewportTransform[5]);
+        ctx.lineTo(x2 * zoom + viewportTransform[4], y2 * zoom + viewportTransform[5]);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function isInRange(value1, value2) {
+        value1 = Math.round(value1);
+        value2 = Math.round(value2);
+        for (var i = value1 - aligningLineMargin, len = value1 + aligningLineMargin; i <= len; i++) {
+            if (i === value2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    var verticalLines = [],
+        horizontalLines = [];
+
+    canvas.on('mouse:down', function () {
+        viewportTransform = canvas.viewportTransform;
+        zoom = canvas.getZoom();
+    });
+
+    canvas.on('object:moving', function(e) {
+        var activeObject = e.target,
+            canvasObjects = canvas.getObjects(),
+            activeObjectCenter = activeObject.getCenterPoint(),
+            activeObjectBoundingRect = activeObject.getBoundingRect(),
+            activeObjectHeight = activeObjectBoundingRect.height / viewportTransform[3],
+            activeObjectWidth = activeObjectBoundingRect.width / viewportTransform[0],
+            horizontalInTheRange = false,
+            verticalInTheRange = false,
+            transform = canvas._currentTransform;
+
+        if (!transform) return;
+
+        verticalLines.length = horizontalLines.length = 0;
+
+        for (var i = canvasObjects.length; i--; ) {
+            if (canvasObjects[i] === activeObject) continue;
+
+            var objectBoundingRect = canvasObjects[i].getBoundingRect(),
+                objectHeight = objectBoundingRect.height / viewportTransform[3],
+                objectWidth = objectBoundingRect.width / viewportTransform[0],
+                objectCenter = canvasObjects[i].getCenterPoint();
+
+            // Snap center
+            if (isInRange(objectCenter.x, activeObjectCenter.x)) {
+                verticalInTheRange = true;
+                verticalLines.push({
+                    x: objectCenter.x,
+                    y1: (objectCenter.y < activeObjectCenter.y) ?
+                        (objectCenter.y - objectHeight / 2 - aligningLineOffset) :
+                        (objectCenter.y + objectHeight / 2 + aligningLineOffset),
+                    y2: (activeObjectCenter.y > objectCenter.y) ?
+                        (activeObjectCenter.y + activeObjectHeight / 2 + aligningLineOffset) :
+                        (activeObjectCenter.y - activeObjectHeight / 2 - aligningLineOffset)
+                });
+                activeObject.setPositionByOrigin(new fabric.Point(objectCenter.x, activeObjectCenter.y), 'center', 'center');
+            }
+
+            // Snap left
+            if (isInRange(objectBoundingRect.left, activeObjectBoundingRect.left)) {
+                verticalInTheRange = true;
+                verticalLines.push({
+                    x: objectBoundingRect.left,
+                    y1: (objectCenter.y < activeObjectCenter.y) ?
+                        (objectCenter.y - objectHeight / 2 - aligningLineOffset) :
+                        (objectCenter.y + objectHeight / 2 + aligningLineOffset),
+                    y2: (activeObjectCenter.y > objectCenter.y) ?
+                        (activeObjectCenter.y + activeObjectHeight / 2 + aligningLineOffset) :
+                        (activeObjectCenter.y - activeObjectHeight / 2 - aligningLineOffset)
+                });
+                activeObject.setPositionByOrigin(new fabric.Point(objectBoundingRect.left + activeObjectWidth / 2, activeObjectCenter.y), 'center', 'center');
+            }
+
+            // Snap right
+            if (isInRange(objectBoundingRect.left + objectBoundingRect.width, activeObjectBoundingRect.left + activeObjectBoundingRect.width)) {
+                verticalInTheRange = true;
+                verticalLines.push({
+                    x: objectBoundingRect.left + objectBoundingRect.width,
+                    y1: (objectCenter.y < activeObjectCenter.y) ?
+                        (objectCenter.y - objectHeight / 2 - aligningLineOffset) :
+                        (objectCenter.y + objectHeight / 2 + aligningLineOffset),
+                    y2: (activeObjectCenter.y > objectCenter.y) ?
+                        (activeObjectCenter.y + activeObjectHeight / 2 + aligningLineOffset) :
+                        (activeObjectCenter.y - activeObjectHeight / 2 - aligningLineOffset)
+                });
+                activeObject.setPositionByOrigin(new fabric.Point(objectBoundingRect.left + objectBoundingRect.width - activeObjectWidth / 2, activeObjectCenter.y), 'center', 'center');
+            }
+
+            // Horizontal snapping
+            if (isInRange(objectCenter.y, activeObjectCenter.y)) {
+                horizontalInTheRange = true;
+                horizontalLines.push({
+                    y: objectCenter.y,
+                    x1: (objectCenter.x < activeObjectCenter.x) ?
+                        (objectCenter.x - objectWidth / 2 - aligningLineOffset) :
+                        (objectCenter.x + objectWidth / 2 + aligningLineOffset),
+                    x2: (activeObjectCenter.x > objectCenter.x) ?
+                        (activeObjectCenter.x + activeObjectWidth / 2 + aligningLineOffset) :
+                        (activeObjectCenter.x - activeObjectWidth / 2 - aligningLineOffset)
+                });
+                activeObject.setPositionByOrigin(new fabric.Point(activeObjectCenter.x, objectCenter.y), 'center', 'center');
+            }
+        }
+
+        if (!horizontalInTheRange) horizontalLines.length = 0;
+        if (!verticalInTheRange) verticalLines.length = 0;
+    });
+
+    canvas.on('before:render', function() {
+        if(canvas.contextTop) canvas.clearContext(canvas.contextTop);
+    });
+
+    canvas.on('after:render', function() {
+        for (var i = verticalLines.length; i--; ) {
+            drawVerticalLine(verticalLines[i]);
+        }
+        for (var i = horizontalLines.length; i--; ) {
+            drawHorizontalLine(horizontalLines[i]);
+        }
+        verticalLines.length = horizontalLines.length = 0;
+    });
+
+    canvas.on('mouse:up', function() {
+        verticalLines.length = horizontalLines.length = 0;
+        canvas.renderAll();
+    });
+}
+initAligningGuidelines(canvas);

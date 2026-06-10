@@ -144,7 +144,8 @@ btnClearPDF.addEventListener('click', () => {
 document.getElementById('btnAddText').addEventListener('click', () => {
     if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
     
-    const text = new fabric.IText('Nuevo Texto', {
+    const text = new fabric.Textbox('Nuevo Texto', {
+        width: 300,
         left: canvas.width / 2,
         top: canvas.height / 2,
         fontFamily: 'Inter',
@@ -165,6 +166,52 @@ document.getElementById('btnAddText').addEventListener('click', () => {
 document.getElementById('btnAddImage').addEventListener('click', () => {
     if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
     document.getElementById('imageInput').click();
+});
+
+document.getElementById('btnAddLine').addEventListener('click', () => {
+    if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
+    const line = new fabric.Line([50, 50, 250, 50], {
+        left: canvas.width / 2,
+        top: canvas.height / 2,
+        stroke: '#000000',
+        strokeWidth: 2,
+        originX: 'center',
+        originY: 'center',
+        cornerColor: 'var(--accent-primary)',
+        borderColor: 'var(--accent-primary)',
+        cornerSize: 8,
+        transparentCorners: false
+    });
+    // Limitar controles de la línea (no escalar Y, no rotar X)
+    line.setControlsVisibility({
+        mt: false, mb: false, ml: true, mr: true, bl: false, br: false, tl: false, tr: false
+    });
+    canvas.add(line);
+    canvas.setActiveObject(line);
+    canvas.requestRenderAll();
+});
+
+document.getElementById('btnAddDashedLine').addEventListener('click', () => {
+    if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
+    const line = new fabric.Line([50, 50, 250, 50], {
+        left: canvas.width / 2,
+        top: canvas.height / 2,
+        stroke: '#000000',
+        strokeWidth: 2,
+        strokeDashArray: [10, 5],
+        originX: 'center',
+        originY: 'center',
+        cornerColor: 'var(--accent-primary)',
+        borderColor: 'var(--accent-primary)',
+        cornerSize: 8,
+        transparentCorners: false
+    });
+    line.setControlsVisibility({
+        mt: false, mb: false, ml: true, mr: true, bl: false, br: false, tl: false, tr: false
+    });
+    canvas.add(line);
+    canvas.setActiveObject(line);
+    canvas.requestRenderAll();
 });
 
 document.getElementById('imageInput').addEventListener('change', (e) => {
@@ -287,7 +334,7 @@ function updatePropertiesPanel() {
     
     panelNoSelection.classList.add('hidden');
     
-    if (activeObj.type === 'i-text' || activeObj.type === 'text') {
+    if (activeObj.type === 'textbox' || obj.type === 'i-text' || activeObj.type === 'text') {
         panelText.classList.remove('hidden');
         panelImage.classList.add('hidden');
         
@@ -308,6 +355,13 @@ function updatePropertiesPanel() {
         
         if(activeObj.linethrough) textControls.btnLinethrough.classList.add('active');
         else textControls.btnLinethrough.classList.remove('active');
+        
+        textControls.btnAlignLeft.classList.remove('active');
+        textControls.btnAlignCenter.classList.remove('active');
+        textControls.btnAlignRight.classList.remove('active');
+        if(activeObj.textAlign === 'center') textControls.btnAlignCenter.classList.add('active');
+        else if(activeObj.textAlign === 'right') textControls.btnAlignRight.classList.add('active');
+        else textControls.btnAlignLeft.classList.add('active');
         
         textControls.lineHeight.value = activeObj.lineHeight || 1.2;
         textControls.charSpacing.value = activeObj.charSpacing || 0;
@@ -348,13 +402,13 @@ canvas.on('object:rotating', updatePropertiesPanel);
 // Escuchar cambios en la UI para aplicarlos al Texto
 textControls.fontFamily.addEventListener('change', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.requestRenderAll(); }
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.requestRenderAll(); }
     textControls.fontFamily.style.fontFamily = e.target.value;
 });
 
 textControls.fontSize.addEventListener('input', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { 
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
         obj.set('fontSize', parseInt(e.target.value)); 
         obj.set('scaleX', 1); obj.set('scaleY', 1); 
         canvas.requestRenderAll(); 
@@ -363,7 +417,7 @@ textControls.fontSize.addEventListener('input', (e) => {
 
 document.getElementById('fontSizeDown').addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') {
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') {
         let size = parseInt(textControls.fontSize.value) || 24;
         if(size > 6) size--;
         textControls.fontSize.value = size;
@@ -375,7 +429,7 @@ document.getElementById('fontSizeDown').addEventListener('click', () => {
 
 document.getElementById('fontSizeUp').addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') {
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') {
         let size = parseInt(textControls.fontSize.value) || 24;
         if(size < 400) size++;
         textControls.fontSize.value = size;
@@ -387,12 +441,12 @@ document.getElementById('fontSizeUp').addEventListener('click', () => {
 
 textControls.fontColor.addEventListener('input', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { obj.set('fill', e.target.value); canvas.requestRenderAll(); }
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { obj.set('fill', e.target.value); canvas.requestRenderAll(); }
 });
 
 textControls.btnBold.addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { 
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
         const isBold = obj.fontWeight === 'bold';
         obj.set('fontWeight', isBold ? 'normal' : 'bold'); 
         updatePropertiesPanel();
@@ -402,7 +456,7 @@ textControls.btnBold.addEventListener('click', () => {
 
 textControls.btnItalic.addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { 
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
         const isItalic = obj.fontStyle === 'italic';
         obj.set('fontStyle', isItalic ? 'normal' : 'italic'); 
         updatePropertiesPanel();
@@ -410,10 +464,23 @@ textControls.btnItalic.addEventListener('click', () => {
     }
 });
 
+textControls.btnAlignLeft.addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('textAlign', 'left'); canvas.requestRenderAll(); updatePropertiesPanel(); }
+});
+textControls.btnAlignCenter.addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('textAlign', 'center'); canvas.requestRenderAll(); updatePropertiesPanel(); }
+});
+textControls.btnAlignRight.addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('textAlign', 'right'); canvas.requestRenderAll(); updatePropertiesPanel(); }
+});
+
 // Columna vinculada
 textControls.columnBindSelect.addEventListener('change', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { 
+    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
         const val = e.target.value;
         if(val) {
             obj.customData = { isColumnBound: true, columnName: val };
@@ -440,7 +507,7 @@ document.getElementById('btnDuplicate').addEventListener('click', () => {
     if(obj) {
         obj.clone((cloned) => {
             cloned.set({ left: obj.left + 20, top: obj.top + 20 });
-            if (cloned.type === 'i-text') {
+            if (cloned.type === 'textbox' || obj.type === 'i-text') {
                 cloned.set({ customData: JSON.parse(JSON.stringify(obj.customData || {})) });
             }
             canvas.add(cloned);
@@ -751,3 +818,59 @@ function initAligningGuidelines(canvas) {
     });
 }
 initAligningGuidelines(canvas);
+// ======================== MENÚ CONTEXTUAL (CLIC DERECHO) ========================
+const contextMenu = document.getElementById('contextMenu');
+
+window.addEventListener('click', (e) => {
+    if (!contextMenu.classList.contains('hidden')) {
+        contextMenu.classList.add('hidden');
+    }
+});
+
+canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    
+    // Encontrar objeto bajo el cursor
+    const pointer = canvas.getPointer(e);
+    const objects = canvas.getObjects();
+    let targetObj = null;
+    
+    for (let i = objects.length - 1; i >= 0; i--) {
+        if (objects[i].containsPoint(pointer)) {
+            targetObj = objects[i];
+            break;
+        }
+    }
+    
+    if (targetObj) {
+        canvas.setActiveObject(targetObj);
+        canvas.requestRenderAll();
+        updatePropertiesPanel();
+        
+        contextMenu.style.left = e.clientX + 'px';
+        contextMenu.style.top = e.clientY + 'px';
+        contextMenu.classList.remove('hidden');
+    } else {
+        contextMenu.classList.add('hidden');
+    }
+});
+
+document.getElementById('ctxCopy').addEventListener('click', () => {
+    document.getElementById('btnDuplicate').click();
+});
+
+document.getElementById('ctxBringFront').addEventListener('click', () => {
+    document.getElementById('btnBringFront').click();
+});
+
+document.getElementById('ctxSendBack').addEventListener('click', () => {
+    document.getElementById('btnSendBack').click();
+});
+
+document.getElementById('ctxDelete').addEventListener('click', () => {
+    const activeObj = canvas.getActiveObject();
+    if(activeObj) {
+        canvas.remove(activeObj);
+        canvas.discardActiveObject();
+    }
+});

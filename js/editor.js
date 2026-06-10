@@ -1,4 +1,4 @@
-﻿/**
+/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -399,11 +399,37 @@ canvas.on('object:moving', updatePropertiesPanel);
 canvas.on('object:scaling', updatePropertiesPanel);
 canvas.on('object:rotating', updatePropertiesPanel);
 
-// Escuchar cambios en la UI para aplicarlos al Texto
-textControls.fontFamily.addEventListener('change', (e) => {
+// Pre-load ALL fonts at startup so canvas can use them immediately
+const ALL_CANVAS_FONTS = ['Inter', 'Montserrat', 'Roboto Condensed', 'Oswald', 'Fira Sans Condensed', 'Anton'];
+const FONT_WEIGHTS = ['400', '700'];
+
+async function preloadAllFonts() {
+    const loads = [];
+    ALL_CANVAS_FONTS.forEach(family => {
+        FONT_WEIGHTS.forEach(weight => {
+            loads.push(document.fonts.load(`${weight} 16px '${family}'`));
+        });
+    });
+    await Promise.allSettled(loads);
+    console.log('[CertPro] Todas las fuentes precargadas:', ALL_CANVAS_FONTS.join(', '));
+}
+preloadAllFonts();
+
+textControls.fontFamily.addEventListener('change', async (e) => {
+    const fontName = e.target.value;
+    // Wait for the selected font to be ready before applying to canvas
+    await Promise.allSettled([
+        document.fonts.load(`400 16px '${fontName}'`),
+        document.fonts.load(`700 16px '${fontName}'`),
+        document.fonts.load(`400 16px ${fontName}`),
+        document.fonts.load(`700 16px ${fontName}`)
+    ]);
     const obj = canvas.getActiveObject();
-    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('fontFamily', e.target.value); canvas.requestRenderAll(); }
-    textControls.fontFamily.style.fontFamily = e.target.value;
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { 
+        obj.set('fontFamily', fontName); 
+        canvas.requestRenderAll(); 
+    }
+    textControls.fontFamily.style.fontFamily = fontName;
 });
 
 textControls.fontSize.addEventListener('input', (e) => {

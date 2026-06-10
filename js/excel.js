@@ -49,6 +49,13 @@ function handleExcelFile(file) {
             window.AppState.excelData = jsonData;
             window.AppState.columns = Object.keys(jsonData[0]);
             
+            // Auto-detectar columna de nombres
+            const nameKeywords = ['nombre', 'nombres', 'apellido', 'apellidos', 'participante', 'name', 'full name', 'alumno', 'estudiante'];
+            const foundNameCol = window.AppState.columns.find(col => 
+                nameKeywords.some(keyword => col.toLowerCase().includes(keyword))
+            );
+            window.AppState.nameColumn = foundNameCol || "";
+            
             // Actualizar UI
             excelDropZone.classList.add('hidden');
             excelInfo.classList.remove('hidden');
@@ -149,7 +156,12 @@ function populateColumns() {
     
     nameColumnSelect.addEventListener('change', (e) => {
         window.AppState.nameColumn = e.target.value;
+        renderParticipants(document.getElementById('participantSearch').value);
     });
+    
+    if (window.AppState.nameColumn) {
+        nameColumnSelect.value = window.AppState.nameColumn;
+    }
 }
 
 function addBoundTextToCanvas(colName) {

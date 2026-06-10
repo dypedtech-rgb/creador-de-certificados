@@ -402,13 +402,13 @@ canvas.on('object:rotating', updatePropertiesPanel);
 // Escuchar cambios en la UI para aplicarlos al Texto
 textControls.fontFamily.addEventListener('change', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.requestRenderAll(); }
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('fontFamily', e.target.value); canvas.requestRenderAll(); }
     textControls.fontFamily.style.fontFamily = e.target.value;
 });
 
 textControls.fontSize.addEventListener('input', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { 
         obj.set('fontSize', parseInt(e.target.value)); 
         obj.set('scaleX', 1); obj.set('scaleY', 1); 
         canvas.requestRenderAll(); 
@@ -417,7 +417,7 @@ textControls.fontSize.addEventListener('input', (e) => {
 
 document.getElementById('fontSizeDown').addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') {
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
         let size = parseInt(textControls.fontSize.value) || 24;
         if(size > 6) size--;
         textControls.fontSize.value = size;
@@ -429,7 +429,7 @@ document.getElementById('fontSizeDown').addEventListener('click', () => {
 
 document.getElementById('fontSizeUp').addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') {
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
         let size = parseInt(textControls.fontSize.value) || 24;
         if(size < 400) size++;
         textControls.fontSize.value = size;
@@ -441,12 +441,12 @@ document.getElementById('fontSizeUp').addEventListener('click', () => {
 
 textControls.fontColor.addEventListener('input', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { obj.set('fill', e.target.value); canvas.requestRenderAll(); }
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('fill', e.target.value); canvas.requestRenderAll(); }
 });
 
 textControls.btnBold.addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { 
         const isBold = obj.fontWeight === 'bold';
         obj.set('fontWeight', isBold ? 'normal' : 'bold'); 
         updatePropertiesPanel();
@@ -456,7 +456,7 @@ textControls.btnBold.addEventListener('click', () => {
 
 textControls.btnItalic.addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { 
         const isItalic = obj.fontStyle === 'italic';
         obj.set('fontStyle', isItalic ? 'normal' : 'italic'); 
         updatePropertiesPanel();
@@ -466,21 +466,43 @@ textControls.btnItalic.addEventListener('click', () => {
 
 textControls.btnAlignLeft.addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('textAlign', 'left'); canvas.requestRenderAll(); updatePropertiesPanel(); }
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
+        obj.set('textAlign', 'left');
+        if (obj.type === 'textbox' && (!obj.width || obj.width < 50)) {
+            obj.set('width', 300);
+        }
+        canvas.requestRenderAll();
+        updatePropertiesPanel();
+    }
 });
 textControls.btnAlignCenter.addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('textAlign', 'center'); canvas.requestRenderAll(); updatePropertiesPanel(); }
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
+        obj.set('textAlign', 'center');
+        // Ensure textbox has a width for alignment to work
+        if (obj.type === 'textbox' && (!obj.width || obj.width < 50)) {
+            obj.set('width', 300);
+        }
+        canvas.requestRenderAll();
+        updatePropertiesPanel();
+    }
 });
 textControls.btnAlignRight.addEventListener('click', () => {
     const obj = canvas.getActiveObject();
-    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { obj.set('textAlign', 'right'); canvas.requestRenderAll(); updatePropertiesPanel(); }
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
+        obj.set('textAlign', 'right');
+        if (obj.type === 'textbox' && (!obj.width || obj.width < 50)) {
+            obj.set('width', 300);
+        }
+        canvas.requestRenderAll();
+        updatePropertiesPanel();
+    }
 });
 
 // Columna vinculada
 textControls.columnBindSelect.addEventListener('change', (e) => {
     const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'textbox' || obj.type === 'i-text') { 
+    if(obj && (obj.type === 'textbox' || obj.type === 'i-text')) { 
         const val = e.target.value;
         if(val) {
             obj.customData = { isColumnBound: true, columnName: val };

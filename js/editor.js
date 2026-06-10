@@ -1,0 +1,512 @@
+/**
+ * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
+ */
+
+// Configuración de pdf.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// Inicializar Canvas de Fabric
+const canvas = new fabric.Canvas('certificateCanvas', {
+    preserveObjectStacking: true,
+    selection: true
+});
+window.fabricCanvas = canvas; // Exportar globalmente para otros scripts
+
+// Variables de estado interno del editor
+let historyStack = [];
+let redoStack = [];
+let isHistoryAction = false;
+let currentZoom = 1;
+
+// Referencias a elementos UI
+const pdfDropZone = document.getElementById('pdfDropZone');
+const pdfInput = document.getElementById('pdfInput');
+const pdfInfo = document.getElementById('pdfInfo');
+const pdfFileName = document.getElementById('pdfFileName');
+const btnClearPDF = document.getElementById('btnClearPDF');
+const canvasPlaceholder = document.getElementById('canvasPlaceholder');
+
+// Guardar el estado inicial para poder restaurarlo
+function saveHistory() {
+    if (isHistoryAction) return;
+    redoStack = [];
+    historyStack.push(JSON.stringify(canvas));
+    if (historyStack.length > 50) historyStack.shift(); // Límite de 50 pasos
+}
+
+canvas.on('object:added', saveHistory);
+canvas.on('object:modified', saveHistory);
+canvas.on('object:removed', saveHistory);
+
+// ======================== CARGA DE PDF ========================
+function handlePDFFile(file) {
+    if (!file || file.type !== 'application/pdf') {
+        window.showToast('Por favor, selecciona un archivo PDF.', 'error');
+        return;
+    }
+    
+    window.showLoader('Cargando plantilla PDF...');
+    
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const typedarray = new Uint8Array(e.target.result);
+        window.AppState.pdfBytes = typedarray;
+        window.AppState.pdfFile = file;
+        
+        pdfDropZone.classList.add('hidden');
+        pdfInfo.classList.remove('hidden');
+        pdfFileName.textContent = file.name;
+        
+        try {
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            const page = await pdf.getPage(1);
+            
+            // Escala alta para renderizar una imagen nítida en el canvas
+            const scale = 2; 
+            const viewport = page.getViewport({ scale: scale });
+            
+            // Renderizar la página del PDF en un canvas temporal
+            const tempCanvas = document.createElement('canvas');
+            const context = tempCanvas.getContext('2d');
+            tempCanvas.height = viewport.height;
+            tempCanvas.width = viewport.width;
+            
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            
+            const dataUrl = tempCanvas.toDataURL('image/png', 1.0);
+            window.AppState.pdfImageSrc = dataUrl;
+            
+            // Ajustar el canvas de Fabric al tamaño de la vista (viewport sin escala extra para UI)
+            const baseViewport = page.getViewport({ scale: 1 });
+            canvas.setWidth(baseViewport.width);
+            canvas.setHeight(baseViewport.height);
+            
+            fabric.Image.fromURL(dataUrl, (img) => {
+                img.scaleToWidth(baseViewport.width);
+                img.scaleToHeight(baseViewport.height);
+                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                    originX: 'left',
+                    originY: 'top'
+                });
+                
+                canvasPlaceholder.classList.add('hidden');
+                saveHistory();
+                window.hideLoader();
+                window.showToast('Plantilla PDF cargada correctamente', 'success');
+            });
+        } catch (error) {
+            console.error(error);
+            window.hideLoader();
+            window.showToast('Error al leer el PDF', 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// Eventos de Dropzone para PDF
+pdfDropZone.addEventListener('click', (e) => {
+    if(e.target.tagName !== 'BUTTON') pdfInput.click();
+});
+document.getElementById('btnPickPDF').addEventListener('click', () => pdfInput.click());
+pdfInput.addEventListener('change', (e) => handlePDFFile(e.target.files[0]));
+
+pdfDropZone.addEventListener('dragover', (e) => { e.preventDefault(); pdfDropZone.style.borderColor = 'var(--accent-primary)'; });
+pdfDropZone.addEventListener('dragleave', () => { pdfDropZone.style.borderColor = ''; });
+pdfDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    pdfDropZone.style.borderColor = '';
+    handlePDFFile(e.dataTransfer.files[0]);
+});
+
+btnClearPDF.addEventListener('click', () => {
+    window.AppState.pdfBytes = null;
+    window.AppState.pdfFile = null;
+    window.AppState.pdfImageSrc = null;
+    canvas.clear();
+    canvas.setBackgroundImage(null, canvas.renderAll.bind(canvas));
+    pdfDropZone.classList.remove('hidden');
+    pdfInfo.classList.add('hidden');
+    canvasPlaceholder.classList.remove('hidden');
+    historyStack = [];
+    redoStack = [];
+});
+
+// ======================== HERRAMIENTAS DE EDICIÓN ========================
+document.getElementById('btnAddText').addEventListener('click', () => {
+    if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
+    
+    const text = new fabric.IText('Nuevo Texto', {
+        left: canvas.width / 2,
+        top: canvas.height / 2,
+        fontFamily: 'Inter',
+        fontSize: 32,
+        fill: '#000000',
+        originX: 'center',
+        originY: 'center',
+        customData: {
+            isColumnBound: false,
+            columnName: ''
+        }
+    });
+    canvas.add(text);
+    canvas.setActiveObject(text);
+    canvas.requestRenderAll();
+});
+
+document.getElementById('btnAddImage').addEventListener('click', () => {
+    if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
+    document.getElementById('imageInput').click();
+});
+
+document.getElementById('imageInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (f) => {
+        const data = f.target.result;
+        fabric.Image.fromURL(data, (img) => {
+            img.set({
+                left: canvas.width / 2,
+                top: canvas.height / 2,
+                originX: 'center',
+                originY: 'center'
+            });
+            // Escalar un poco si es muy grande
+            if(img.width > 300) img.scaleToWidth(300);
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.requestRenderAll();
+        });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset
+});
+
+// ======================== DESHACER / REHACER ========================
+document.getElementById('btnUndo').addEventListener('click', () => {
+    if (historyStack.length === 0) return;
+    isHistoryAction = true;
+    redoStack.push(JSON.stringify(canvas));
+    const prevState = historyStack.pop();
+    canvas.loadFromJSON(prevState, () => {
+        canvas.renderAll();
+        isHistoryAction = false;
+        updatePropertiesPanel();
+    });
+});
+
+document.getElementById('btnRedo').addEventListener('click', () => {
+    if (redoStack.length === 0) return;
+    isHistoryAction = true;
+    historyStack.push(JSON.stringify(canvas));
+    const nextState = redoStack.pop();
+    canvas.loadFromJSON(nextState, () => {
+        canvas.renderAll();
+        isHistoryAction = false;
+        updatePropertiesPanel();
+    });
+});
+
+// Teclado
+window.addEventListener('keydown', (e) => {
+    if(e.ctrlKey && e.key === 'z') {
+        document.getElementById('btnUndo').click();
+    } else if (e.ctrlKey && e.key === 'y') {
+        document.getElementById('btnRedo').click();
+    } else if (e.key === 'Delete') {
+        const activeObj = canvas.getActiveObject();
+        if(activeObj && activeObj.type !== 'i-text' || (activeObj && !activeObj.isEditing)) {
+            canvas.remove(activeObj);
+            canvas.discardActiveObject();
+        }
+    }
+});
+
+// ======================== PANEL DE PROPIEDADES ========================
+const panelNoSelection = document.getElementById('noSelectionMsg');
+const panelText = document.getElementById('textProperties');
+const panelImage = document.getElementById('imageProperties');
+
+// Controles de Texto
+const textControls = {
+    columnBindSelect: document.getElementById('columnBindSelect'),
+    fontFamily: document.getElementById('fontFamily'),
+    fontSize: document.getElementById('fontSize'),
+    fontColor: document.getElementById('fontColor'),
+    btnBold: document.getElementById('btnBold'),
+    btnItalic: document.getElementById('btnItalic'),
+    btnUnderline: document.getElementById('btnUnderline'),
+    btnLinethrough: document.getElementById('btnLinethrough'),
+    btnAlignLeft: document.getElementById('btnAlignLeft'),
+    btnAlignCenter: document.getElementById('btnAlignCenter'),
+    btnAlignRight: document.getElementById('btnAlignRight'),
+    lineHeight: document.getElementById('lineHeight'),
+    charSpacing: document.getElementById('charSpacing'),
+    objX: document.getElementById('objX'),
+    objY: document.getElementById('objY'),
+    objOpacity: document.getElementById('objOpacity'),
+    objRotation: document.getElementById('objRotation')
+};
+
+// Actualizar panel cuando se selecciona o modifica un objeto
+function updatePropertiesPanel() {
+    const activeObj = canvas.getActiveObject();
+    
+    if (!activeObj) {
+        panelNoSelection.classList.remove('hidden');
+        panelText.classList.add('hidden');
+        panelImage.classList.add('hidden');
+        return;
+    }
+    
+    panelNoSelection.classList.add('hidden');
+    
+    if (activeObj.type === 'i-text' || activeObj.type === 'text') {
+        panelText.classList.remove('hidden');
+        panelImage.classList.add('hidden');
+        
+        // Cargar valores del objeto al UI
+        textControls.fontFamily.value = activeObj.fontFamily || 'Inter';
+        textControls.fontSize.value = Math.round(activeObj.fontSize * (activeObj.scaleX || 1));
+        textControls.fontColor.value = activeObj.fill || '#000000';
+        
+        if(activeObj.fontWeight === 'bold') textControls.btnBold.classList.add('active');
+        else textControls.btnBold.classList.remove('active');
+        
+        if(activeObj.fontStyle === 'italic') textControls.btnItalic.classList.add('active');
+        else textControls.btnItalic.classList.remove('active');
+        
+        if(activeObj.underline) textControls.btnUnderline.classList.add('active');
+        else textControls.btnUnderline.classList.remove('active');
+        
+        if(activeObj.linethrough) textControls.btnLinethrough.classList.add('active');
+        else textControls.btnLinethrough.classList.remove('active');
+        
+        textControls.lineHeight.value = activeObj.lineHeight || 1.2;
+        textControls.charSpacing.value = activeObj.charSpacing || 0;
+        
+        textControls.objX.value = Math.round(activeObj.left);
+        textControls.objY.value = Math.round(activeObj.top);
+        textControls.objOpacity.value = Math.round((activeObj.opacity || 1) * 100);
+        textControls.objRotation.value = Math.round(activeObj.angle || 0);
+        
+        // Column bind (data personalizada)
+        if(activeObj.customData && activeObj.customData.isColumnBound) {
+            textControls.columnBindSelect.value = activeObj.customData.columnName;
+        } else {
+            textControls.columnBindSelect.value = '';
+        }
+        
+    } else if (activeObj.type === 'image') {
+        panelText.classList.add('hidden');
+        panelImage.classList.remove('hidden');
+        
+        document.getElementById('imgX').value = Math.round(activeObj.left);
+        document.getElementById('imgY').value = Math.round(activeObj.top);
+        document.getElementById('imgW').value = Math.round(activeObj.width * activeObj.scaleX);
+        document.getElementById('imgH').value = Math.round(activeObj.height * activeObj.scaleY);
+        document.getElementById('imgOpacity').value = Math.round((activeObj.opacity || 1) * 100);
+        document.getElementById('imgRotation').value = Math.round(activeObj.angle || 0);
+    }
+}
+
+canvas.on('selection:created', updatePropertiesPanel);
+canvas.on('selection:updated', updatePropertiesPanel);
+canvas.on('selection:cleared', updatePropertiesPanel);
+canvas.on('object:modified', updatePropertiesPanel);
+canvas.on('object:moving', updatePropertiesPanel);
+canvas.on('object:scaling', updatePropertiesPanel);
+canvas.on('object:rotating', updatePropertiesPanel);
+
+// Escuchar cambios en la UI para aplicarlos al Texto
+textControls.fontFamily.addEventListener('change', (e) => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.requestRenderAll(); }
+});
+
+textControls.fontSize.addEventListener('input', (e) => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') { 
+        obj.set('fontSize', parseInt(e.target.value)); 
+        obj.set('scaleX', 1); obj.set('scaleY', 1); 
+        canvas.requestRenderAll(); 
+    }
+});
+
+textControls.fontColor.addEventListener('input', (e) => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') { obj.set('fill', e.target.value); canvas.requestRenderAll(); }
+});
+
+textControls.btnBold.addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') { 
+        const isBold = obj.fontWeight === 'bold';
+        obj.set('fontWeight', isBold ? 'normal' : 'bold'); 
+        updatePropertiesPanel();
+        canvas.requestRenderAll(); 
+    }
+});
+
+textControls.btnItalic.addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') { 
+        const isItalic = obj.fontStyle === 'italic';
+        obj.set('fontStyle', isItalic ? 'normal' : 'italic'); 
+        updatePropertiesPanel();
+        canvas.requestRenderAll(); 
+    }
+});
+
+// Columna vinculada
+textControls.columnBindSelect.addEventListener('change', (e) => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') { 
+        const val = e.target.value;
+        if(val) {
+            obj.customData = { isColumnBound: true, columnName: val };
+            obj.set('text', `{${val}}`);
+        } else {
+            obj.customData = { isColumnBound: false, columnName: '' };
+        }
+        canvas.requestRenderAll();
+    }
+});
+
+// Botones de acciones de objeto (Eliminar, duplicar, ordenar)
+document.getElementById('btnDeleteSelected').addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj) { canvas.remove(obj); canvas.discardActiveObject(); }
+});
+document.getElementById('btnDeleteImg').addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj) { canvas.remove(obj); canvas.discardActiveObject(); }
+});
+
+document.getElementById('btnDuplicate').addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj) {
+        obj.clone((cloned) => {
+            cloned.set({ left: obj.left + 20, top: obj.top + 20 });
+            if (cloned.type === 'i-text') {
+                cloned.set({ customData: JSON.parse(JSON.stringify(obj.customData || {})) });
+            }
+            canvas.add(cloned);
+            canvas.setActiveObject(cloned);
+            canvas.requestRenderAll();
+        });
+    }
+});
+
+document.getElementById('btnBringFront').addEventListener('click', () => { const obj = canvas.getActiveObject(); if(obj) canvas.bringForward(obj); });
+document.getElementById('btnSendBack').addEventListener('click', () => { const obj = canvas.getActiveObject(); if(obj) canvas.sendBackwards(obj); });
+
+// ======================== ZOOM ========================
+const zoomLevelText = document.getElementById('zoomLevel');
+const canvasWrapper = document.getElementById('canvasWrapper');
+
+function setZoom(factor) {
+    if (factor < 0.2 || factor > 3) return;
+    currentZoom = factor;
+    zoomLevelText.textContent = Math.round(factor * 100) + '%';
+    
+    // Scale wrapper using transform
+    canvasWrapper.style.transform = `scale(${currentZoom})`;
+    canvasWrapper.style.transformOrigin = 'center center';
+}
+
+document.getElementById('btnZoomIn').addEventListener('click', () => setZoom(currentZoom + 0.1));
+document.getElementById('btnZoomOut').addEventListener('click', () => setZoom(currentZoom - 0.1));
+document.getElementById('btnZoomReset').addEventListener('click', () => {
+    setZoom(1);
+    document.getElementById('canvasArea').scrollTo(0,0);
+});
+
+// Guardar y Abrir proyecto .certificado
+document.getElementById('btnSaveCert').addEventListener('click', () => {
+    if(!window.AppState.pdfBytes) return window.showToast('No hay nada que guardar', 'error');
+    
+    // Necesitamos guardar los objetos de canvas, los metadatos de las columnas vinculadas, y el pdf base en base64
+    const projectData = {
+        canvas: canvas.toJSON(['customData']), // Asegurar de guardar customData
+        pdfImageSrc: window.AppState.pdfImageSrc
+        // Omitiremos guardar el PDF en arraybuffer gigante para no sobrecargar el JSON,
+        // esto implicaría que el usuario debe volver a subir el PDF original, o guardamos el PDF en base64
+    };
+    
+    // Guardar el Uint8Array del PDF a Base64
+    let binary = '';
+    const bytes = new Uint8Array(window.AppState.pdfBytes);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    projectData.pdfBase64 = window.btoa(binary);
+
+    const json = JSON.stringify(projectData);
+    const blob = new Blob([json], {type: "application/json"});
+    const url  = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plantilla.certificado';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+});
+
+document.getElementById('btnOpenCert').addEventListener('click', () => {
+    document.getElementById('certFileInput').click();
+});
+
+document.getElementById('certFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    window.showLoader("Cargando proyecto...");
+    const reader = new FileReader();
+    reader.onload = (f) => {
+        try {
+            const data = JSON.parse(f.target.result);
+            
+            // Restaurar PDF bytes
+            const binary_string = window.atob(data.pdfBase64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            window.AppState.pdfBytes = bytes;
+            window.AppState.pdfImageSrc = data.pdfImageSrc;
+            
+            // Restaurar Canvas
+            canvas.loadFromJSON(data.canvas, () => {
+                // Configurar fondo de nuevo si es necesario
+                fabric.Image.fromURL(data.pdfImageSrc, (img) => {
+                    canvas.setWidth(data.canvas.width || img.width);
+                    canvas.setHeight(data.canvas.height || img.height);
+                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                        originX: 'left',
+                        originY: 'top'
+                    });
+                    
+                    canvasPlaceholder.classList.add('hidden');
+                    pdfDropZone.classList.add('hidden');
+                    pdfInfo.classList.remove('hidden');
+                    pdfFileName.textContent = "Proyecto restaurado";
+                    
+                    window.hideLoader();
+                    window.showToast("Proyecto cargado exitosamente", "success");
+                });
+            });
+            
+        } catch(err) {
+            console.error(err);
+            window.hideLoader();
+            window.showToast("Error al cargar el archivo de proyecto", "error");
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // reset
+});

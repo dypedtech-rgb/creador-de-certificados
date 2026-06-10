@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CertificadoPro — Editor de Certificados Masivos</title>
+  <meta name="description" content="Crea, personaliza y exporta certificados PDF de forma masiva desde plantillas PDF y datos de Excel. Editor visual tipo Canva.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CDN Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ HEADER -->
+<header class="app-header">
+  <div class="logo">
+    <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+    <span class="logo-text">Certificado<strong>Pro</strong></span>
+  </div>
+  
+  <div class="toolbar">
+    <button id="btnAddText" title="Añadir caja de texto (T)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+      Texto
+    </button>
+    <button id="btnAddImage" title="Añadir imagen PNG">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+      Imagen
+    </button>
+    <input type="file" id="imageInput" accept="image/png,image/jpeg,image/svg+xml,image/gif" style="display:none">
+
+    <div class="divider"></div>
+
+    <button id="btnUndo" title="Deshacer (Ctrl+Z)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+      Deshacer
+    </button>
+    <button id="btnRedo" title="Rehacer (Ctrl+Y)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+      Rehacer
+    </button>
+
+    <div class="divider"></div>
+
+    <button class="btn-primary" id="btnSaveCert" title="Guardar proyecto (.certificado)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Guardar .certificado
+    </button>
+    <button id="btnOpenCert" title="Abrir proyecto (.certificado)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+      Abrir proyecto
+    </button>
+    <input type="file" id="certFileInput" accept=".certificado" style="display:none">
+
+    <div class="divider"></div>
+
+    <button class="btn-accent" id="btnOpenExport" title="Exportar PDFs">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+      Exportar PDFs
+    </button>
+  </div>
+
+  <div style="width:120px;"></div>
+</header>
+
+<!-- ═══════════════════════════════════════════ MAIN -->
+<main class="main-content">
+
+  <!-- ─── LEFT PANEL ────────────────────────────── -->
+  <aside class="panel-left">
+    <div class="tab-list">
+      <button class="tab-btn active" data-tab="files" id="tabBtnFiles">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg> Archivos
+      </button>
+      <button class="tab-btn" data-tab="data" id="tabBtnData">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg> Datos
+      </button>
+    </div>
+
+    <!-- TAB: FILES -->
+    <div class="panel-content active" id="tabFiles">
+
+      <!-- PDF -->
+      <div class="panel-section">
+        <h3 class="section-title">Plantilla PDF</h3>
+        <div class="drop-zone" id="pdfDropZone">
+          <div class="drop-text">
+            <svg class="icon icon-xl text-muted mb-10" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg><br>
+            Arrastra tu PDF aquí<br>o
+          </div>
+          <button class="btn-sm" id="btnPickPDF">Seleccionar PDF</button>
+          <input type="file" id="pdfInput" accept=".pdf" style="display:none">
+        </div>
+        <div class="file-info hidden" id="pdfInfo">
+          <svg class="icon" viewBox="0 0 24 24" style="color:var(--error);"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div style="flex:1;min-width:0">
+            <div class="file-details">
+              <h4 id="pdfFileName"></h4>
+              <p id="pdfFileMeta"></p>
+            </div>
+          </div>
+          <button class="btn-icon" id="btnClearPDF" title="Quitar PDF"><svg class="icon" viewBox="0 0 24 24"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Excel -->
+      <div class="panel-section">
+        <h3 class="section-title">Datos Excel / CSV</h3>
+        <div class="drop-zone" id="excelDropZone">
+          <div class="drop-text">
+            <svg class="icon icon-xl text-muted mb-10" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2v5H8z"/><path d="M14 11h2v7h-2z"/><path d="M11 15h2v3h-2z"/></svg><br>
+            Arrastra tu Excel o CSV aquí<br>o
+          </div>
+          <button class="btn-sm" id="btnPickExcel">Seleccionar archivo</button>
+          <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" style="display:none">
+        </div>
+        <div class="file-info hidden" id="excelInfo">
+          <svg class="icon" viewBox="0 0 24 24" style="color:var(--success);"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2v5H8z"/><path d="M14 11h2v7h-2z"/><path d="M11 15h2v3h-2z"/></svg>
+          <div style="flex:1;min-width:0">
+            <div class="file-details">
+              <h4 id="excelFileName"></h4>
+              <p id="excelFileMeta"></p>
+            </div>
+          </div>
+          <button class="btn-icon" id="btnClearExcel" title="Quitar Excel"><svg class="icon" viewBox="0 0 24 24"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Column Selector (hidden until Excel loaded) -->
+      <div class="panel-section hidden" id="columnSelectorSection">
+        <h3 class="section-title">
+          Columnas del Excel
+          <span style="font-size:0.7rem;text-transform:none;">arrastra al canvas</span>
+        </h3>
+
+        <div class="prop-group">
+          <label>📛 Columna de nombre (para nombrar PDFs):</label>
+          <select id="nameColumnSelect" class="full">
+            <option value="">-- seleccionar --</option>
+          </select>
+        </div>
+
+        <div class="column-list" id="columnsList"></div>
+      </div>
+    </div>
+
+    <!-- TAB: DATA -->
+    <div class="panel-content hidden" id="tabData">
+      <div class="panel-section">
+        <h3 class="section-title">
+          Participantes
+          <span class="badge" id="participantCount">0</span>
+        </h3>
+        <div class="flex-row mb-10">
+          <button class="btn-sm full" id="btnHomogenize" onclick="if(typeof homogenizeNames === 'function') homogenizeNames()" title="Convertir a Tipo Título (Ej: JUAN -> Juan)">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg> Homogeneizar
+          </button>
+          <button class="btn-sm full" id="btnRemoveDuplicates" onclick="if(typeof removeDuplicates === 'function') removeDuplicates()" title="Eliminar filas con el mismo nombre">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z"/><path d="m9 14 2 2 4-4"/></svg> Quitar duplicados
+          </button>
+        </div>
+        <div class="search-box">
+          <svg class="icon icon-sm search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+          <input type="text" id="participantSearch" class="full" placeholder="Buscar participante...">
+        </div>
+        <div class="participants-list" id="participantsList"></div>
+      </div>
+
+      <div class="panel-section hidden" id="previewSection">
+        <h3 class="section-title">Vista Previa</h3>
+        <div class="preview-actions">
+          <button id="btnPrevParticipant" class="btn-icon" title="Anterior"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <span id="previewIndex">— / —</span>
+          <button id="btnNextParticipant" class="btn-icon" title="Siguiente"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+        
+        <div class="flex-row mt-6">
+          <button class="btn-sm btn-primary full" id="btnPreviewCurrent">Ver certificado</button>
+          <button class="btn-sm btn-accent full" id="btnExportCurrent">Exportar este</button>
+        </div>
+        <button class="btn-sm mt-6 full" id="btnResetPreview"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg> Volver a plantilla</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── CANVAS AREA ────────────────────────────── -->
+  <div class="canvas-area" id="canvasArea" style="flex:1; overflow:auto; position:relative; background-color:#09090b; background-image:linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size:20px 20px; display:flex; align-items:center; justify-content:center;">
+    
+    <div class="canvas-wrapper" id="canvasWrapper" style="position:relative; box-shadow:0 20px 50px rgba(0,0,0,0.5); margin:40px;">
+      <div class="empty-state" id="canvasPlaceholder" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:48px; height:48px; color:var(--text-muted); margin-bottom:16px; opacity:0.5;"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        <h2 style="font-size:1.25rem; margin-bottom:8px; color:var(--text-secondary);">CertificadoPro Editor</h2>
+        <p style="font-size:0.875rem; color:var(--text-muted);">Carga un PDF para comenzar a diseñar</p>
+      </div>
+
+      <canvas id="certificateCanvas"></canvas>
+    </div>
+
+    <div class="zoom-controls">
+      <button id="btnZoomOut" title="Alejar"><svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="5" x2="19" y1="12" y2="12"/></svg></button>
+      <span id="zoomLevel">100%</span>
+      <button id="btnZoomIn" title="Acercar"><svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg></button>
+      <button id="btnZoomReset" title="Restablecer zoom"><svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg></button>
+    </div>
+  </div>
+
+  <!-- ─── RIGHT PANEL ───────────────────────────── -->
+  <aside class="panel-right" id="panelRight">
+
+    <!-- No selection -->
+    <div id="noSelectionMsg" class="panel-section">
+      <div class="empty-state" style="position:static; transform:none; margin-top:50px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+        <p style="margin-top:20px;">Selecciona un elemento en el canvas para editar sus propiedades</p>
+      </div>
+    </div>
+
+    <!-- TEXT PROPERTIES -->
+    <div id="textProperties" class="properties-panel hidden">
+      <div class="panel-section">
+        <h3 class="section-title">Texto</h3>
+
+        <!-- Column Binding -->
+        <div class="prop-group">
+          <label>Vincular columna Excel</label>
+          <select id="columnBindSelect" class="full">
+            <option value="">Texto libre (sin vincular)</option>
+          </select>
+        </div>
+
+        <!-- Font Family -->
+        <div class="prop-group">
+          <label>Tipografía</label>
+          <select id="fontFamily" class="full">
+            <option>Inter</option>
+            <option>Arial</option>
+            <option>Arial Black</option>
+            <option>Georgia</option>
+            <option>Times New Roman</option>
+            <option>Verdana</option>
+            <option>Helvetica</option>
+            <option>Courier New</option>
+            <option>Trebuchet MS</option>
+            <option>Palatino</option>
+            <option>Garamond</option>
+            <option>Book Antiqua</option>
+            <option>Century Gothic</option>
+            <option>Impact</option>
+            <option>Tahoma</option>
+            <option>Comic Sans MS</option>
+            <option>Lucida Console</option>
+            <option>Cambria</option>
+            <option>Calibri</option>
+          </select>
+        </div>
+
+        <!-- Size & Color -->
+        <div class="prop-row">
+          <div class="prop-group" style="flex:1">
+            <label>Tamaño</label>
+            <div style="display:flex; align-items:center; gap:4px; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:2px;">
+              <button class="btn-icon" style="padding:4px 8px; border-radius:4px;" id="fontSizeDown">−</button>
+              <input type="number" id="fontSize" value="24" min="6" max="400" style="border:none; background:transparent; width:100%; padding:4px; text-align:center;">
+              <button class="btn-icon" style="padding:4px 8px; border-radius:4px;" id="fontSizeUp">+</button>
+            </div>
+          </div>
+          <div class="prop-group" style="flex:1">
+            <label>Color</label>
+            <div class="flex-row">
+              <input type="color" id="fontColor" value="#000000">
+              <input type="text" id="fontColorHex" value="#000000" style="width:72px;font-size:11px;display:none;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Style -->
+        <div class="prop-group">
+          <label>Estilo</label>
+          <div class="btn-group">
+            <button class="btn-icon" id="btnBold" title="Negrita (Ctrl+B)"><b>B</b></button>
+            <button class="btn-icon" id="btnItalic" title="Cursiva (Ctrl+I)"><i>I</i></button>
+            <button class="btn-icon" id="btnUnderline" title="Subrayado"><u>U</u></button>
+            <button class="btn-icon" id="btnLinethrough" title="Tachado"><s>S</s></button>
+          </div>
+        </div>
+
+        <!-- Alignment -->
+        <div class="prop-group">
+          <label>Alineación</label>
+          <div class="btn-group">
+            <button class="btn-icon" id="btnAlignLeft" title="Izquierda">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+            </button>
+            <button class="btn-icon" id="btnAlignCenter" title="Centro">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>
+            </button>
+            <button class="btn-icon" id="btnAlignRight" title="Derecha">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Line Height & Char Spacing -->
+        <div class="prop-group">
+          <label>Interlineado: <span id="lineHeightVal">1.2</span></label>
+          <input type="range" class="full" id="lineHeight" min="0.8" max="4" step="0.05" value="1.2">
+        </div>
+        <div class="prop-group">
+          <label>Espaciado letras: <span id="charSpacingVal">0</span></label>
+          <input type="range" class="full" id="charSpacing" min="-200" max="1000" step="5" value="0">
+        </div>
+
+        <!-- Spell Check -->
+        <div class="prop-group">
+          <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="spellCheck" checked style="width:16px;height:16px;accent-color:var(--accent-primary)">
+            Revisor ortográfico activo
+          </label>
+        </div>
+      </div>
+
+      <!-- Position & Size -->
+      <div class="panel-section">
+        <h3 class="section-title">Posición &amp; Tamaño</h3>
+        <div class="prop-row">
+          <div class="prop-group" style="flex:1">
+            <label>X (px)</label>
+            <input type="number" id="objX" value="0">
+          </div>
+          <div class="prop-group" style="flex:1">
+            <label>Y (px)</label>
+            <input type="number" id="objY" value="0">
+          </div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-group" style="flex:1">
+            <label>Ancho</label>
+            <input type="number" id="objW" value="0" readonly>
+          </div>
+          <div class="prop-group" style="flex:1">
+            <label>Alto</label>
+            <input type="number" id="objH" value="0" readonly>
+          </div>
+        </div>
+        <div class="prop-group">
+          <label>Opacidad: <span id="objOpacityVal">100%</span></label>
+          <input type="range" class="full" id="objOpacity" min="0" max="100" value="100">
+        </div>
+        <div class="prop-group">
+          <label>Rotación: <span id="objRotationVal">0°</span></label>
+          <input type="range" class="full" id="objRotation" min="-180" max="180" value="0">
+        </div>
+
+        <div class="flex-row mt-10">
+          <button class="btn-sm full" id="btnDuplicate" title="Duplicar elemento">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            Duplicar
+          </button>
+          <button class="btn-sm full" id="btnDeleteSelected" style="color:var(--error); border-color:var(--error);">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            Eliminar
+          </button>
+        </div>
+      </div>
+
+      <!-- Layer order -->
+      <div class="panel-section">
+        <h3 class="section-title">Orden de capas</h3>
+        <div class="flex-row">
+          <button class="btn-sm full" id="btnBringFront" title="Traer al frente">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg> Frente
+          </button>
+          <button class="btn-sm full" id="btnSendBack" title="Enviar atrás">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> Atrás
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMAGE PROPERTIES -->
+    <div id="imageProperties" class="properties-panel hidden">
+      <div class="panel-section">
+        <h3 class="section-title">Imagen</h3>
+        <div class="prop-row">
+          <div class="prop-group" style="flex:1">
+            <label>X (px)</label>
+            <input type="number" id="imgX" value="0">
+          </div>
+          <div class="prop-group" style="flex:1">
+            <label>Y (px)</label>
+            <input type="number" id="imgY" value="0">
+          </div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-group" style="flex:1">
+            <label>Ancho</label>
+            <input type="number" id="imgW" value="0">
+          </div>
+          <div class="prop-group" style="flex:1">
+            <label>Alto</label>
+            <input type="number" id="imgH" value="0">
+          </div>
+        </div>
+        <div class="prop-group">
+          <label>Opacidad: <span id="imgOpacityVal">100%</span></label>
+          <input type="range" class="full" id="imgOpacity" min="0" max="100" value="100">
+        </div>
+        <div class="prop-group">
+          <label>Rotación: <span id="imgRotationVal">0°</span></label>
+          <input type="range" class="full" id="imgRotation" min="-180" max="180" value="0">
+        </div>
+        <div class="prop-group">
+          <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="imgLockRatio" checked style="width:16px;height:16px;accent-color:var(--accent-primary)">
+            Mantener proporción
+          </label>
+        </div>
+        
+        <div class="flex-row mt-10">
+          <button class="btn-sm full" id="btnDuplicateImg">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            Duplicar
+          </button>
+          <button class="btn-sm full" id="btnDeleteImg" style="color:var(--error); border-color:var(--error);">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            Eliminar
+          </button>
+        </div>
+        <div class="flex-row mt-6">
+          <button class="btn-sm full" id="btnBringFrontImg">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg> Frente
+          </button>
+          <button class="btn-sm full" id="btnSendBackImg">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> Atrás
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</main>
+
+<!-- ═══════════════════════════════════════════ EXPORT MODAL -->
+<div class="modal-overlay hidden" id="exportModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>Exportar Certificados</h3>
+      <button class="close-btn" id="closeExportModal"><svg class="icon" viewBox="0 0 24 24"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+
+      <div class="export-config">
+        <label>Columna de nombre (para nombre del archivo PDF):</label>
+        <select id="exportNameCol" class="full">
+          <option value="_index">Usar número (certificado_1.pdf, certificado_2.pdf...)</option>
+        </select>
+      </div>
+
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="exportScope" value="all" id="exportAll" checked>
+          <div>
+            <div style="font-weight:600;">Exportar todos</div>
+            <div class="text-muted" style="font-size:0.75rem;">Genera un PDF por cada fila del Excel</div>
+          </div>
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="exportScope" value="current" id="exportCurrent">
+          <div>
+            <div style="font-weight:600;">Exportar participante actual</div>
+            <div class="text-muted" style="font-size:0.75rem;">Solo genera el certificado del participante seleccionado</div>
+          </div>
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="exportScope" value="range" id="exportRange">
+          <div>
+            <div style="font-weight:600;">Exportar rango</div>
+            <div class="text-muted" style="font-size:0.75rem;">Especifica un rango de filas (ej: 1-50)</div>
+          </div>
+        </label>
+      </div>
+
+      <div id="rangeInputs" class="range-inputs hidden">
+        <div class="prop-group">
+          <label>Desde fila</label>
+          <input type="number" id="exportFrom" value="1" min="1">
+        </div>
+        <div class="prop-group">
+          <label>Hasta fila</label>
+          <input type="number" id="exportTo" value="10" min="1">
+        </div>
+      </div>
+
+      <div class="export-config" style="margin-top:20px;">
+        <label>Escala de exportación (Calidad):</label>
+        <select id="exportScale" class="full">
+          <option value="4">Ultra calidad (4x — Recomendado para impresión)</option>
+          <option value="5">Máxima calidad (5x — Sin píxeles, archivo más pesado)</option>
+          <option value="2">Alta calidad (2x)</option>
+          <option value="1">Normal (1x)</option>
+        </select>
+      </div>
+
+      <div class="progress-wrap hidden" id="exportProgressWrap">
+        <div class="progress-bg">
+          <div class="progress-fill" id="exportProgressBar"></div>
+        </div>
+        <div class="progress-text" id="exportProgressText">Preparando...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline btn-sm" style="width:auto;" id="cancelExportBtn">Cancelar</button>
+      <button class="btn-primary btn-sm" id="startExportBtn">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Iniciar exportación
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ LOADING OVERLAY -->
+<div class="hidden" id="globalLoader">
+  <div class="spinner"></div>
+  <div id="globalLoaderText">Procesando...</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ TOASTS -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Context menu (dynamically populated) -->
+<div class="context-menu hidden" id="ctxMenu"></div>
+
+<!-- ═══════════════════════════════════════════ SCRIPTS -->
+<script src="js/app.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/excel.js"></script>
+<script src="js/export.js"></script>
+</body>
+</html>

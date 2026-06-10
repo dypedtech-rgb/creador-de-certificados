@@ -1,4 +1,4 @@
-﻿/**
+/**
  * export.js - Lógica de exportación con pdf-lib (Renderizado Vectorial) y JSZip
  */
 
@@ -123,8 +123,8 @@ startExportBtn.addEventListener('click', async () => {
             const rowData = data[rowIndex];
             
             const percent = Math.round(((i) / indicesToExport.length) * 100);
-            exportProgressBar.style.width = ${percent}%;
-            exportProgressText.textContent = "Generando vectorialmente  de ...";
+            exportProgressBar.style.width = `${percent}%`;
+            exportProgressText.textContent = `Generando vectorialmente ${i + 1} de ${indicesToExport.length}...`;
             await new Promise(r => setTimeout(r, 10));
             
             // 1. Reemplazar textos

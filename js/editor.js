@@ -1,4 +1,4 @@
-/**
+﻿/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -334,7 +334,7 @@ function updatePropertiesPanel() {
     
     panelNoSelection.classList.add('hidden');
     
-    if (activeObj.type === 'textbox' || obj.type === 'i-text' || activeObj.type === 'text') {
+    if (activeObj.type === 'textbox' || activeObj.type === 'i-text' || activeObj.type === 'text') {
         panelText.classList.remove('hidden');
         panelImage.classList.add('hidden');
         

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -548,7 +548,9 @@ document.getElementById('btnSaveCert').addEventListener('click', () => {
     // Necesitamos guardar los objetos de canvas, los metadatos de las columnas vinculadas, y el pdf base en base64
     const projectData = {
         canvas: canvas.toJSON(['customData']), // Asegurar de guardar customData
-        pdfImageSrc: window.AppState.pdfImageSrc
+        pdfImageSrc: window.AppState.pdfImageSrc,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height
         // Omitiremos guardar el PDF en arraybuffer gigante para no sobrecargar el JSON,
         // esto implicaría que el usuario debe volver a subir el PDF original, o guardamos el PDF en base64
     };
@@ -602,8 +604,16 @@ document.getElementById('certFileInput').addEventListener('change', (e) => {
             canvas.loadFromJSON(data.canvas, () => {
                 // Configurar fondo de nuevo si es necesario
                 fabric.Image.fromURL(data.pdfImageSrc, (img) => {
-                    canvas.setWidth(data.canvas.width || img.width);
-                    canvas.setHeight(data.canvas.height || img.height);
+                    const cWidth = data.canvasWidth || (data.canvas.width || (img.width / 2));
+                    const cHeight = data.canvasHeight || (data.canvas.height || (img.height / 2));
+                    
+                    canvas.setWidth(cWidth);
+                    canvas.setHeight(cHeight);
+                    
+                    // Asegurar que la imagen de fondo se escale correctamente al tamaño original
+                    img.scaleToWidth(cWidth);
+                    img.scaleToHeight(cHeight);
+                    
                     canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
                         originX: 'left',
                         originY: 'top'

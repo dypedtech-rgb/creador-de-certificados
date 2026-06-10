@@ -1,6 +1,15 @@
-/**
+﻿/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
+
+// Parche para error de CanvasTextBaseline 'alphabetical' en Fabric.js
+const originalSetTextBaseline = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'textBaseline').set;
+Object.defineProperty(CanvasRenderingContext2D.prototype, 'textBaseline', {
+    set: function(val) {
+        if (val === 'alphabetical') val = 'alphabetic';
+        originalSetTextBaseline.call(this, val);
+    }
+});
 
 // Configuración de pdf.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -58,7 +67,7 @@ function handlePDFFile(file) {
         pdfFileName.textContent = file.name;
         
         try {
-            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            const pdf = await pdfjsLib.getDocument(typedarray.slice(0)).promise;
             const page = await pdf.getPage(1);
             
             // Escala alta para renderizar una imagen nítida en el canvas

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -268,6 +268,7 @@ function updatePropertiesPanel() {
         
         // Cargar valores del objeto al UI
         textControls.fontFamily.value = activeObj.fontFamily || 'Inter';
+        textControls.fontFamily.style.fontFamily = activeObj.fontFamily || 'Inter';
         textControls.fontSize.value = Math.round(activeObj.fontSize * (activeObj.scaleX || 1));
         textControls.fontColor.value = activeObj.fill || '#000000';
         
@@ -323,6 +324,7 @@ canvas.on('object:rotating', updatePropertiesPanel);
 textControls.fontFamily.addEventListener('change', (e) => {
     const obj = canvas.getActiveObject();
     if(obj && obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.requestRenderAll(); }
+    textControls.fontFamily.style.fontFamily = e.target.value;
 });
 
 textControls.fontSize.addEventListener('input', (e) => {
@@ -511,7 +513,7 @@ document.getElementById('certFileInput').addEventListener('change', (e) => {
     e.target.value = ''; // reset
 });
 
-// ======================== GU�AS INTELIGENTES (SMART GUIDES) ========================
+// ======================== GU�AS INTELIGENTES (SMART GUIDES) ========================
 function initAligningGuidelines(canvas) {
     var ctx = canvas.getSelectionContext(),
         aligningLineOffset = 5,

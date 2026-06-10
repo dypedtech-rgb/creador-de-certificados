@@ -1,4 +1,4 @@
-﻿/**
+/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -333,6 +333,30 @@ textControls.fontSize.addEventListener('input', (e) => {
         obj.set('fontSize', parseInt(e.target.value)); 
         obj.set('scaleX', 1); obj.set('scaleY', 1); 
         canvas.requestRenderAll(); 
+    }
+});
+
+document.getElementById('fontSizeDown').addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') {
+        let size = parseInt(textControls.fontSize.value) || 24;
+        if(size > 6) size--;
+        textControls.fontSize.value = size;
+        obj.set('fontSize', size);
+        obj.set('scaleX', 1); obj.set('scaleY', 1);
+        canvas.requestRenderAll();
+    }
+});
+
+document.getElementById('fontSizeUp').addEventListener('click', () => {
+    const obj = canvas.getActiveObject();
+    if(obj && obj.type === 'i-text') {
+        let size = parseInt(textControls.fontSize.value) || 24;
+        if(size < 400) size++;
+        textControls.fontSize.value = size;
+        obj.set('fontSize', size);
+        obj.set('scaleX', 1); obj.set('scaleY', 1);
+        canvas.requestRenderAll();
     }
 });
 

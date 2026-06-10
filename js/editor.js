@@ -1,4 +1,4 @@
-/**
+﻿/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -145,7 +145,7 @@ document.getElementById('btnAddText').addEventListener('click', () => {
     if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
     
     const text = new fabric.Textbox('Nuevo Texto', {
-        width: 300,
+        width: 350,
         left: canvas.width / 2,
         top: canvas.height / 2,
         fontFamily: 'Inter',
@@ -153,6 +153,8 @@ document.getElementById('btnAddText').addEventListener('click', () => {
         fill: '#000000',
         originX: 'center',
         originY: 'center',
+        textAlign: 'left',
+        splitByGrapheme: false,
         customData: {
             isColumnBound: false,
             columnName: ''

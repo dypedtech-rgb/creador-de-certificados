@@ -1,4 +1,4 @@
-﻿/**
+/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -219,11 +219,16 @@ document.getElementById('btnRedo').addEventListener('click', () => {
 
 // Teclado
 window.addEventListener('keydown', (e) => {
-    if(e.ctrlKey && e.key === 'z') {
-        document.getElementById('btnUndo').click();
-    } else if (e.ctrlKey && e.key === 'y') {
-        document.getElementById('btnRedo').click();
-    } else if (e.key === 'Delete') {
+    // CMD+Z o CTRL+Z para Deshacer, CMD+SHIFT+Z o CTRL+Y para Rehacer
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+            document.getElementById('btnRedo').click(); // Cmd+Shift+Z / Ctrl+Shift+Z
+        } else {
+            document.getElementById('btnUndo').click(); // Cmd+Z / Ctrl+Z
+        }
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        document.getElementById('btnRedo').click(); // Ctrl+Y
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
         const activeObj = canvas.getActiveObject();
         if(activeObj && activeObj.type !== 'i-text' || (activeObj && !activeObj.isEditing)) {
             canvas.remove(activeObj);

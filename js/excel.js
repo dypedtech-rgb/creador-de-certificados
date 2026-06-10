@@ -38,7 +38,7 @@ function handleExcelFile(file) {
             const worksheet = workbook.Sheets[firstSheetName];
             
             // Convertir a JSON
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
             
             if (jsonData.length === 0) {
                 window.hideLoader();

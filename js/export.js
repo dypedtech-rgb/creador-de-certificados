@@ -19,14 +19,32 @@ const exportProgressWrap = document.getElementById('exportProgressWrap');
 const exportProgressBar = document.getElementById('exportProgressBar');
 const exportProgressText = document.getElementById('exportProgressText');
 
-// Mapa de URLs TTF para incrustar fuentes como vectores en el PDF
+// Mapa de URLs TTF estáticas para incrustar fuentes como vectores (Soporte para Negrita)
 const fontUrls = {
-    'Inter': 'https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bslnt%2Cwght%5D.ttf',
-    'Montserrat': 'https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf',
-    'Roboto Condensed': 'https://raw.githubusercontent.com/google/fonts/main/ofl/robotocondensed/RobotoCondensed%5Bwght%5D.ttf',
-    'Oswald': 'https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/Oswald%5Bwght%5D.ttf',
-    'Fira Sans Condensed': 'https://raw.githubusercontent.com/google/fonts/main/ofl/firasanscondensed/FiraSansCondensed-Regular.ttf',
-    'Anton': 'https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf'
+    'Inter': {
+        normal: 'https://raw.githubusercontent.com/google/fonts/main/ofl/inter/static/Inter-Regular.ttf',
+        bold: 'https://raw.githubusercontent.com/google/fonts/main/ofl/inter/static/Inter-Bold.ttf'
+    },
+    'Montserrat': {
+        normal: 'https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/static/Montserrat-Regular.ttf',
+        bold: 'https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/static/Montserrat-Bold.ttf'
+    },
+    'Roboto Condensed': {
+        normal: 'https://raw.githubusercontent.com/google/fonts/main/ofl/robotocondensed/static/RobotoCondensed-Regular.ttf',
+        bold: 'https://raw.githubusercontent.com/google/fonts/main/ofl/robotocondensed/static/RobotoCondensed-Bold.ttf'
+    },
+    'Oswald': {
+        normal: 'https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/static/Oswald-Regular.ttf',
+        bold: 'https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/static/Oswald-Bold.ttf'
+    },
+    'Fira Sans Condensed': {
+        normal: 'https://raw.githubusercontent.com/google/fonts/main/ofl/firasanscondensed/FiraSansCondensed-Regular.ttf',
+        bold: 'https://raw.githubusercontent.com/google/fonts/main/ofl/firasanscondensed/FiraSansCondensed-Bold.ttf'
+    },
+    'Anton': {
+        normal: 'https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf',
+        bold: 'https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf'
+    }
 };
 
 const fontCache = {};
@@ -165,15 +183,19 @@ startExportBtn.addEventListener('click', async () => {
                     const fontSize = obj.fontSize * scaleY;
                     const rgb = hexToRgb(obj.fill || '#000000');
 
-                    // Obtener fuente vectorial
+                    // Obtener fuente vectorial con soporte para negrita
                     let pdfFont;
+                    const isBold = obj.fontWeight === 'bold' || obj.fontWeight >= 700;
+                    const weightKey = isBold ? 'bold' : 'normal';
+
                     if (fontUrls[obj.fontFamily] && window.fontkit) {
                         try {
-                            if (!fontCache[obj.fontFamily]) {
-                                const fontBytes = await fetch(fontUrls[obj.fontFamily]).then(res => res.arrayBuffer());
-                                fontCache[obj.fontFamily] = fontBytes;
+                            const url = fontUrls[obj.fontFamily][weightKey] || fontUrls[obj.fontFamily]['normal'];
+                            if (!fontCache[url]) {
+                                const fontBytes = await fetch(url).then(res => res.arrayBuffer());
+                                fontCache[url] = fontBytes;
                             }
-                            pdfFont = await pdfDoc.embedFont(fontCache[obj.fontFamily]);
+                            pdfFont = await pdfDoc.embedFont(fontCache[url]);
                         } catch (e) {
                             pdfFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
                         }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * excel.js - Lógica para manejar datos de Excel, columnas y participantes
  */
 
@@ -167,7 +167,7 @@ function populateColumns() {
 function addBoundTextToCanvas(colName) {
     if(!window.AppState.pdfBytes) return window.showToast('Carga un PDF primero', 'error');
     
-    const text = new fabric.IText(`{${colName}}`, {
+    const text = new fabric.Textbox(`{${colName}}`, {
         left: window.fabricCanvas.width / 2,
         top: window.fabricCanvas.height / 2,
         fontFamily: 'Inter',
@@ -203,7 +203,7 @@ document.getElementById('canvasArea').addEventListener('drop', (e) => {
         let x = (e.clientX - rect.left) * scale;
         let y = (e.clientY - rect.top) * scale;
         
-        const text = new fabric.IText(`{${colName}}`, {
+        const text = new fabric.Textbox(`{${colName}}`, {
             left: x,
             top: y,
             fontFamily: 'Inter',

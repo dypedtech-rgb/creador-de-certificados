@@ -649,31 +649,71 @@ document.getElementById('certFileInput').addEventListener('change', (e) => {
             window.AppState.pdfImageSrc = data.pdfImageSrc;
             
             // Restaurar Canvas
-            canvas.loadFromJSON(data.canvas, () => {
-                // Configurar fondo de nuevo si es necesario
+            canvas.loadFromJSON(data.canvas, async () => {
+                // Post-load: ensure all textbox objects have proper width (fix for old projects)
+                canvas.getObjects().forEach(obj => {
+                    if (obj.type === 'textbox') {
+                        if (!obj.width || obj.width < 10) obj.set('width', 350);
+                        // Upgrade i-text to textbox behavior if needed
+                    } else if (obj.type === 'i-text') {
+                        // Convert i-text to textbox for alignment support
+                        const tbx = new fabric.Textbox(obj.text, {
+                            left: obj.left,
+                            top: obj.top,
+                            width: Math.max(obj.width || 0, 350),
+                            fontSize: obj.fontSize,
+                            fontFamily: obj.fontFamily,
+                            fill: obj.fill,
+                            fontWeight: obj.fontWeight,
+                            fontStyle: obj.fontStyle,
+                            underline: obj.underline,
+                            linethrough: obj.linethrough,
+                            textAlign: obj.textAlign || 'left',
+                            lineHeight: obj.lineHeight,
+                            charSpacing: obj.charSpacing,
+                            opacity: obj.opacity,
+                            angle: obj.angle,
+                            customData: obj.customData
+                        });
+                        canvas.remove(obj);
+                        canvas.add(tbx);
+                    }
+                });
+
+                // Pre-load all fonts used by the restored objects
+                const usedFonts = new Set();
+                canvas.getObjects().forEach(obj => {
+                    if (obj.fontFamily) usedFonts.add(obj.fontFamily);
+                });
+                const fontLoads = [];
+                usedFonts.forEach(family => {
+                    fontLoads.push(document.fonts.load(`400 16px '${family}'`));
+                    fontLoads.push(document.fonts.load(`700 16px '${family}'`));
+                });
+                await Promise.allSettled(fontLoads);
+
+                // Configurar fondo de nuevo
                 fabric.Image.fromURL(data.pdfImageSrc, (img) => {
                     const cWidth = data.canvasWidth || (data.canvas.width || (img.width / 2));
                     const cHeight = data.canvasHeight || (data.canvas.height || (img.height / 2));
-                    
+
                     canvas.setWidth(cWidth);
                     canvas.setHeight(cHeight);
-                    
-                    // Asegurar que la imagen de fondo se escale correctamente al tamaño original
                     img.scaleToWidth(cWidth);
                     img.scaleToHeight(cHeight);
-                    
+
                     canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
                         originX: 'left',
                         originY: 'top'
                     });
-                    
+
                     canvasPlaceholder.classList.add('hidden');
                     pdfDropZone.classList.add('hidden');
                     pdfInfo.classList.remove('hidden');
-                    pdfFileName.textContent = "Proyecto restaurado";
-                    
+                    pdfFileName.textContent = 'Proyecto restaurado';
+
                     window.hideLoader();
-                    window.showToast("Proyecto cargado exitosamente", "success");
+                    window.showToast('Proyecto cargado exitosamente', 'success');
                 });
             });
             

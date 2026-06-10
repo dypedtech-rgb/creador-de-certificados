@@ -275,13 +275,16 @@ function previewParticipant(index) {
     
     // Guardar los textos originales si es la primera previsualización
     canvas.getObjects().forEach(obj => {
-        if (obj.type === 'i-text' && obj.customData && obj.customData.isColumnBound) {
+        // Support both textbox (new) and i-text (old/legacy)
+        const isTextObj = obj.type === 'textbox' || (obj.type === 'i-text' || obj.type === 'textbox');
+        if (isTextObj && obj.customData && obj.customData.isColumnBound) {
             const col = obj.customData.columnName;
             if(!originalTexts.has(obj)) {
                 originalTexts.set(obj, obj.text);
             }
-            // Sustituir por el valor
-            obj.set('text', String(row[col] || ''));
+            // Sustituir por el valor real del participante
+            const value = String(row[col] !== undefined ? row[col] : '');
+            obj.set('text', value);
         }
     });
     

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * editor.js - Lógica de Canvas con Fabric.js y Renderizado de fondo con PDF.js
  */
 
@@ -233,6 +233,17 @@ window.addEventListener('keydown', (e) => {
         if(activeObj && activeObj.type !== 'i-text' || (activeObj && !activeObj.isEditing)) {
             canvas.remove(activeObj);
             canvas.discardActiveObject();
+        }
+    } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+        const activeObj = canvas.getActiveObject();
+        if(activeObj && !activeObj.isEditing) {
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 1;
+            if(e.key === 'ArrowUp') activeObj.set('top', activeObj.top - step);
+            if(e.key === 'ArrowDown') activeObj.set('top', activeObj.top + step);
+            if(e.key === 'ArrowLeft') activeObj.set('left', activeObj.left - step);
+            if(e.key === 'ArrowRight') activeObj.set('left', activeObj.left + step);
+            canvas.requestRenderAll();
         }
     }
 });
@@ -691,6 +702,29 @@ function initAligningGuidelines(canvas) {
                 });
                 activeObject.setPositionByOrigin(new fabric.Point(activeObjectCenter.x, objectCenter.y), 'center', 'center');
             }
+        }
+
+        // Snap to center of canvas
+        var canvasCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+
+        if (isInRange(canvasCenter.x, activeObjectCenter.x)) {
+            verticalInTheRange = true;
+            verticalLines.push({
+                x: canvasCenter.x,
+                y1: 0,
+                y2: canvas.height
+            });
+            activeObject.setPositionByOrigin(new fabric.Point(canvasCenter.x, activeObjectCenter.y), 'center', 'center');
+        }
+
+        if (isInRange(canvasCenter.y, activeObjectCenter.y)) {
+            horizontalInTheRange = true;
+            horizontalLines.push({
+                y: canvasCenter.y,
+                x1: 0,
+                x2: canvas.width
+            });
+            activeObject.setPositionByOrigin(new fabric.Point(activeObjectCenter.x, canvasCenter.y), 'center', 'center');
         }
 
         if (!horizontalInTheRange) horizontalLines.length = 0;

@@ -52,9 +52,9 @@ window.showToast = function(message, type = 'info') {
     toast.className = `toast toast-${type}`;
     
     let icon = '';
-    if(type === 'success') icon = '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
-    else if(type === 'error') icon = '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    else icon = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    if(type === 'success') icon = '<svg class="icon" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+    else if(type === 'error') icon = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    else icon = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
     
     toast.innerHTML = `${icon} <span>${message}</span>`;
     toastContainer.appendChild(toast);
